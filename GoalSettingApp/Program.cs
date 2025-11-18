@@ -1,4 +1,5 @@
 using GoalSettingApp.Components;
+using GoalSettingApp.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,6 +19,14 @@ await supabase.InitializeAsync();
 
 // Register Supabase client in DI container
 builder.Services.AddSingleton(supabase);
+// Register HttpClient
+builder.Services.AddHttpClient();
+
+// Register GoalService as a singleton
+builder.Services.AddSingleton<GoalService>();
+
+// Register WeatherService
+builder.Services.AddScoped<WeatherService>();
 
 var app = builder.Build();
 
@@ -31,10 +40,9 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.MapStaticAssets();
 
 app.UseAntiforgery();
-
-app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
