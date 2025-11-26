@@ -6,6 +6,8 @@
 
 main {
     flex: 1;
+    min-width: 0;
+    overflow-x: auto;
 }
 
 .sidebar[b-krrlf9ywdc] {
@@ -39,7 +41,7 @@ background-image: linear-gradient(180deg, rgb(11, 19, 43) 0%, #254091 100%) !imp
 
 
     /* This controls the size of the sidebar menu */
-    /* (max-width: 640.98px) */
+    /* This was the intitial value (max-width: 640.98px) */
 @media (max-width: 850px) {
     .top-row {
         justify-content: space-between;
@@ -49,7 +51,7 @@ background-image: linear-gradient(180deg, rgb(11, 19, 43) 0%, #254091 100%) !imp
         margin-left: 0;
     }
 }
-/* @media (min-width: 641px) */
+/* This was the initial value @media (min-width: 641px) */
 @media (min-width: 850px) {
     .page {
         flex-direction: row;
