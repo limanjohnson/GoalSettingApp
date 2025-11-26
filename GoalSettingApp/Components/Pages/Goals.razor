@@ -25,9 +25,25 @@
 
         .input-mobile {
             width: auto;
-            max-width: 9em;
+            max-width: 9em;`
         }
     }
+    .goals-container {
+        overflow-x: auto;
+    }
+
+    .goals-table {
+        table-layout: fixed;
+        min-width: 1000px;
+        width: 100%;
+    }
+
+    .col-title { width: 15%; }
+    .col-description { width: 30%; }
+    .col-category { width: 15%; }
+    .col-priority { width: 10%; }
+    .col-created { width: 12%; }
+    .col-actions { width: 18%; }
 </style>
 
 <PageTitle>Goals</PageTitle>
@@ -115,16 +131,16 @@
     }
     else
     {
-        <div class="table-responsive-lg">
-            <table class="table table-striped">
+        <div class="goals-container">
+            <table class="table table-striped goals-table">
                 <thead>
                     <tr>
-                        <th>Title</th>
-                        <th>Description</th>
-                        <th>Category</th>
-                        <th>Priority</th>
-                        <th>Created</th>
-                        <th>Actions</th>
+                        <th class="col-title">Title</th>
+                        <th class="col-description">Description</th>
+                        <th class="col-category">Category</th>
+                        <th class="col-priority">Priority</th>
+                        <th class="col-created">Created</th>
+                        <th class="col-actions">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -152,12 +168,12 @@
                             }
                             else
                             {
-                                <td class="table-text">@goal.Title</td>
-                                <td>@goal.Description.FirstCharToUpper()</td>
-                                <td>@goal.Category.FirstCharToUpper()</td>
-                                <td><span class="badge bg-@GetPriorityColor(goal.Priority)">@goal.Priority</span></td>
-                                <td>@goal.CreatedAt.ToString("MMM d, yyyy")</td>
-                                <td>
+                                <td class="table-text col-title">@goal.Title</td>
+                                <td class="col-description">@goal.Description.FirstCharToUpper()</td>
+                                <td class="col-category">@goal.Category.FirstCharToUpper()</td>
+                                <td class="col-priority"><span class="badge bg-@GetPriorityColor(goal.Priority)">@goal.Priority</span></td>
+                                <td class="col-created">@goal.CreatedAt.ToString("MMM d, yyyy")</td>
+                                <td class="col-actions">
                                     <button class="btn btn-sm btn-warning mb-1 mb-md-1 mb-lg-0"
                                         @onclick="() => StartEdit(goal)">Edit</button>
                                     <button class="btn btn-sm btn-danger" @onclick="() => DeleteGoal(goal.Id)">Delete</button>
