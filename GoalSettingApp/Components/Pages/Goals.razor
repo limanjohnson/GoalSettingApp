@@ -25,7 +25,7 @@
 
         .input-mobile {
             width: auto;
-            max-width: 9em;`
+            max-width: 9em;
         }
     }
     .goals-container {
@@ -58,16 +58,16 @@
     </div>
     <div class="order-1 mb-1 order-md-2 col-md-3 input-mobile">
         <label class="form-label">Title</label>
-        <input type="text" class="form-control" @bind="searchTitle" />
+        <input type="text" class="form-control" @bind="_searchTitle" />
     </div>
 
     <div class="order-1 mb-1 order-md-2 col-md-3 input-mobile">
         <label class="form-label">Category</label>
-        <input type="text" class="form-control" @bind="searchCategory" />
+        <input type="text" class="form-control" @bind="_searchCategory" />
     </div>
     <div class="order-1 mb-1 order-md-2 col-md-3 input-mobile">
         <label class="form-label">Priority</label>
-        <select class="form-select" @bind="searchPriority">
+        <select class="form-select" @bind="_searchPriority">
             <option value="">All</option>
             <option value="Low">Low</option>
             <option value="Medium">Medium</option>
@@ -81,7 +81,7 @@
     </div>
 </div>
 
-@if (showDialog)
+@if (_showDialog)
 {
     <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5)">
         <div class="modal-dialog">
@@ -93,19 +93,19 @@
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label">Title</label>
-                        <input type="text" class="form-control" @bind="newGoalTitle" />
+                        <input type="text" class="form-control" @bind="_newGoalTitle" />
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Description</label>
-                        <textarea class="form-control" @bind="newGoalDescription" rows="3"></textarea>
+                        <textarea class="form-control" @bind="_newGoalDescription" rows="3"></textarea>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Category</label>
-                        <input type="text" class="form-control" @bind="newGoalCategory" />
+                        <input type="text" class="form-control" @bind="_newGoalCategory" />
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Priority</label>
-                        <select class="form-select" @bind="newGoalPriority">
+                        <select class="form-select" @bind="_newGoalPriority">
                             <option value="@PriorityLevel.Low">Low</option>
                             <option value="@PriorityLevel.Medium">Medium</option>
                             <option value="@PriorityLevel.High">High</option>
@@ -113,7 +113,7 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Due Date</label>
-                        <input type="date" class="form-control" @bind="newGoalDueDate" />
+                        <input type="date" class="form-control" @bind="_newGoalDueDate" />
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -131,7 +131,7 @@
 
 <div>
     <h3>Goal List</h3>
-    @if (goals.Count == 0)
+    @if (_goals.Count == 0)
     {
         <p><em>No goals yet. Add your first goal above!</em></p>
     }
@@ -152,23 +152,23 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var goal in activeGoals)
+                    @foreach (var goal in ActiveGoals)
                     {
                         <tr>
-                            @if (editingGoalId == goal.Id)
+                            @if (_editingGoalId == goal.Id)
                             {
-                                <td><input type="text" class="form-control" @bind="editGoalTitle" /></td>
-                                <td><textarea class="form-control" @bind="editGoalDescription"></textarea></td>
-                                <td><input type="text" class="form-control" @bind="editGoalCategory" /></td>
+                                <td><input type="text" class="form-control" @bind="_editGoalTitle" /></td>
+                                <td><textarea class="form-control" @bind="_editGoalDescription"></textarea></td>
+                                <td><input type="text" class="form-control" @bind="_editGoalCategory" /></td>
                                 <td>
-                                    <select class="form-select" @bind="editGoalPriority">
+                                    <select class="form-select" @bind="_editGoalPriority">
                                         <option value="@PriorityLevel.Low">Low</option>
                                         <option value="@PriorityLevel.Medium">Medium</option>
                                         <option value="@PriorityLevel.High">High</option>
                                     </select>
                                 </td>
                                 <td>
-                                    <input type="date" class="form-control" @bind="editGoalDueDate" />
+                                    <input type="date" class="form-control" @bind="_editGoalDueDate" />
                                 </td>
                                 <td>@goal.CreatedAt.ToShortDateString()</td>
                                 <td class="d-flex">
@@ -204,7 +204,7 @@
 
 @* ARCHIVED GOALS *@
 <div>
-@if (archivedGoals.Any())
+@if (ArchivedGoals.Any())
 {
     <h3 class="mt-5">Archived Goals</h3>
     <div class="goals-container">
@@ -221,7 +221,7 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach (var goal in archivedGoals)
+                @foreach (var goal in ArchivedGoals)
                 {
                     <tr class="text-muted">
                         <td>@goal.Title</td>
@@ -246,54 +246,54 @@
 
 @code {
 
-    private bool showDialog = false;
+    private bool _showDialog = false;
 
-    private void OpenDialog() => showDialog = true;
-    private void CloseDialog() => showDialog = false;
-    private List<Goal> goals = new List<Goal>();
+    private void OpenDialog() => _showDialog = true;
+    private void CloseDialog() => _showDialog = false;
+    private List<Goal> _goals = new List<Goal>();
 
     // New goal fields
-    private string newGoalTitle = "";
-    private string newGoalDescription = "";
-    private string newGoalCategory = "";
-    private PriorityLevel newGoalPriority = PriorityLevel.Medium;
-    private DateTime? newGoalDueDate = DateTime.Today;
+    private string _newGoalTitle = "";
+    private string _newGoalDescription = "";
+    private string _newGoalCategory = "";
+    private PriorityLevel _newGoalPriority = PriorityLevel.Medium;
+    private DateTime? _newGoalDueDate = DateTime.Today;
 
     // Edit goal fields
-    private int? editingGoalId = null;
-    private string editGoalTitle = "";
-    private string editGoalDescription = "";
-    private string editGoalCategory = "";
-    private PriorityLevel editGoalPriority = PriorityLevel.Medium;
-    private DateTime? editGoalDueDate = null;
+    private int? _editingGoalId = null;
+    private string _editGoalTitle = "";
+    private string _editGoalDescription = "";
+    private string _editGoalCategory = "";
+    private PriorityLevel _editGoalPriority = PriorityLevel.Medium;
+    private DateTime? _editGoalDueDate = null;
 
     // Search fields
-    private string searchTitle = "";
-    private string searchCategory = "";
-    private string searchPriority = "";
+    private string _searchTitle = "";
+    private string _searchCategory = "";
+    private string _searchPriority = "";
 
     // Filtered list
-    private List<Goal> filteredGoals = new List<Goal>();
-    private List<Goal> activeGoals => filteredGoals.Where(g => !g.IsCompleted).ToList();
-    private List<Goal> archivedGoals => filteredGoals.Where(g => g.IsCompleted).ToList();
+    private List<Goal> _filteredGoals = new List<Goal>();
+    private List<Goal> ActiveGoals => _filteredGoals.Where(g => !g.IsCompleted).ToList();
+    private List<Goal> ArchivedGoals => _filteredGoals.Where(g => g.IsCompleted).ToList();
 
     private void ApplyFilters()
     {
-        filteredGoals = goals
+        _filteredGoals = _goals
         .Where(goal =>
-        (string.IsNullOrEmpty(searchTitle) || goal.Title.Contains(searchTitle, StringComparison.OrdinalIgnoreCase)) &&
-        (string.IsNullOrEmpty(searchCategory) || goal.Category.Contains(searchCategory, StringComparison.OrdinalIgnoreCase)) &&
-        (string.IsNullOrEmpty(searchPriority) || goal.Priority.ToString() == searchPriority)
+        (string.IsNullOrEmpty(_searchTitle) || goal.Title.Contains(_searchTitle, StringComparison.OrdinalIgnoreCase)) &&
+        (string.IsNullOrEmpty(_searchCategory) || goal.Category.Contains(_searchCategory, StringComparison.OrdinalIgnoreCase)) &&
+        (string.IsNullOrEmpty(_searchPriority) || goal.Priority.ToString() == _searchPriority)
         )
         .ToList();
     }
 
     private void ClearFilters()
     {
-        searchTitle = "";
-        searchCategory = "";
-        searchPriority = "";
-        filteredGoals = goals;
+        _searchTitle = "";
+        _searchCategory = "";
+        _searchPriority = "";
+        _filteredGoals = _goals;
     }
 
     protected override async Task OnInitializedAsync()
@@ -303,22 +303,22 @@
 
     private async Task RefreshGoalsAsync()
     {
-        goals = await GoalService.GetAllGoalsAsync();
+        _goals = await GoalService.GetAllGoalsAsync();
         ApplyFilters();
     }
 
     private async Task AddGoal()
     {
-        if (!string.IsNullOrWhiteSpace(newGoalTitle))
+        if (!string.IsNullOrWhiteSpace(_newGoalTitle))
         {
-            await GoalService.AddGoalAsync(newGoalTitle, newGoalDescription, newGoalCategory, newGoalPriority, newGoalDueDate);
+            await GoalService.AddGoalAsync(_newGoalTitle, _newGoalDescription, _newGoalCategory, _newGoalPriority, _newGoalDueDate);
 
             // Clear form
-            newGoalTitle = "";
-            newGoalDescription = "";
-            newGoalCategory = "";
-            newGoalPriority = PriorityLevel.Medium;
-            newGoalDueDate = DateTime.Today;
+            _newGoalTitle = "";
+            _newGoalDescription = "";
+            _newGoalCategory = "";
+            _newGoalPriority = PriorityLevel.Medium;
+            _newGoalDueDate = DateTime.Today;
 
             await RefreshGoalsAsync();
         }
@@ -326,24 +326,24 @@
 
     private void StartEdit(Goal goal)
     {
-        editingGoalId = goal.Id;
-        editGoalTitle = goal.Title;
-        editGoalDescription = goal.Description;
-        editGoalCategory = goal.Category;
-        editGoalPriority = goal.Priority;
-        editGoalDueDate = goal.DueDate;
+        _editingGoalId = goal.Id;
+        _editGoalTitle = goal.Title;
+        _editGoalDescription = goal.Description;
+        _editGoalCategory = goal.Category;
+        _editGoalPriority = goal.Priority;
+        _editGoalDueDate = goal.DueDate;
     }
 
     private async Task SaveEdit(int id)
     {
-        await GoalService.EditGoalAsync(id, editGoalTitle, editGoalDescription, editGoalCategory, editGoalPriority, editGoalDueDate);
-        editingGoalId = null;
+        await GoalService.EditGoalAsync(id, _editGoalTitle, _editGoalDescription, _editGoalCategory, _editGoalPriority, _editGoalDueDate);
+        _editingGoalId = null;
         await RefreshGoalsAsync();
     }
 
     private void CancelEdit()
     {
-        editingGoalId = null;
+        _editingGoalId = null;
     }
 
     private async Task DeleteGoal(int id)
