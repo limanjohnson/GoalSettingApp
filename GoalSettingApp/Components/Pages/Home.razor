@@ -1,8 +1,75 @@
 ﻿@page "/"
 @attribute [Authorize]
+@using Microsoft.AspNetCore.Components.Authorization
+@using GoalSettingApp.Services
+@using GoalSettingApp.Helpers
+@inject GoalService GoalService
+@rendermode InteractiveServer
 
 <PageTitle>Dashboard</PageTitle>
 
-<h1>Hello, world!</h1>
+<AuthorizeView>
+    <Authorized>
+        <h1>Hello, @context.User.Identity?.Name!</h1>
+    </Authorized>
+    <NotAuthorized>
+        <h1>Hello, Guest!</h1>
+    </NotAuthorized>
+</AuthorizeView>
 
-Welcome to your new app.
+<div class="d-flex flex-column flex-lg-row justify-content-around gap-2 mt-4">
+    <GoalTable 
+        Title="Your High Priority Goals"
+        EmptyMessage="You have no high priority goals! Looking Good!"
+        Items="@_goals.Where(g => g.Priority == PriorityLevel.High && !g.IsCompleted)"
+        Headers="@_headers">
+
+        <RowTemplate Context="goal">
+            <tr>
+                <td>@goal.Title</td>
+                <td>@goal.Category</td>
+                <td>
+                    <span class="badge bg-@PriorityBadgeHelper.GetPriorityColor(goal.Priority)">
+                        @goal.Priority
+                    </span>
+                </td>
+                <td>@goal.DueDate?.ToString("d")</td>
+            </tr>
+        </RowTemplate>
+    </GoalTable>
+
+    <GoalTable
+        Title="Upcoming Due Dates"
+        EmptyMessage="You have no due dates this week!"
+        Items="@_goals.Where(g => g.DueDate != null && g.DueDate <= DateTime.Today.AddDays(7) && !g.IsCompleted)"
+        Headers="@_headers">
+    
+        <RowTemplate Context="goal">
+            <tr>
+                <td>@goal.Title</td>
+                <td>@goal.Category</td>
+                <td>
+                    <span class="badge bg-@PriorityBadgeHelper.GetPriorityColor(goal.Priority)">
+                        @goal.Priority
+                    </span>
+                </td>
+                <td>@goal.DueDate?.ToString("d")</td>
+            </tr>
+        </RowTemplate>
+
+    </GoalTable>
+</div>
+
+
+
+
+@code{
+    private List<Goal> _goals = new List<Goal>();
+    private List<string> _headers = new List<string> { "Title", "Category", "Priority", "Due Date" };
+
+    protected override async Task OnInitializedAsync()
+    {
+        _goals = await GoalService.GetAllGoalsAsync();
+    }
+
+}
