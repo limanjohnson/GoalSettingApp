@@ -1,5 +1,6 @@
 using GoalSettingApp.Components;
 using GoalSettingApp.Services;
+using GoalSettingApp.Models;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Authentication.Cookies;
 
@@ -43,6 +44,24 @@ builder.Services.AddScoped<GoalService>();
 
 // Register WeatherService
 builder.Services.AddScoped<WeatherService>();
+
+// Email Settings - configure via environment variables
+var emailSettings = new EmailSettings
+{
+    SmtpHost = Environment.GetEnvironmentVariable("SMTP_HOST") ?? "smtp.gmail.com",
+    SmtpPort = int.TryParse(Environment.GetEnvironmentVariable("SMTP_PORT"), out var port) ? port : 587,
+    SmtpUser = Environment.GetEnvironmentVariable("SMTP_USER") ?? "",
+    SmtpPass = Environment.GetEnvironmentVariable("SMTP_PASS") ?? "",
+    FromEmail = Environment.GetEnvironmentVariable("FROM_EMAIL") ?? "",
+    FromName = Environment.GetEnvironmentVariable("FROM_NAME") ?? "Goal Setting App"
+};
+builder.Services.AddSingleton(emailSettings);
+
+// Register EmailService
+builder.Services.AddScoped<EmailService>();
+
+// Register TaskReminderService (Background Service)
+builder.Services.AddHostedService<TaskReminderService>();
 
 var app = builder.Build();
 
