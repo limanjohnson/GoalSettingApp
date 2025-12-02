@@ -125,6 +125,61 @@
     </div>
 }
 
+@if (_showRecurrenceDialog)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5)">
+        <div class="modal-dialog">
+            <div class="modal-content">
+
+                <div class="modal-header">
+                    <h5 class="modal-title">You can make a goal recurring</h5>
+                    <button type="button" class="btn-close" @onclick="CloseRecurrenceDialog"></button>
+                </div>
+
+                <div class="modal-body">
+                    <h6 class="mb-2">@_selectedGoalForRecurrence?.Title</h6>
+
+                    @if (_selectedGoalForRecurrence != null)
+                    {
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Progress</label>
+                            <div class="progress">
+                                <div class="progress-bar" role="progressbar"
+                                    style="width:@_selectedGoalForRecurrence.CompletionPercentage%"></div>
+                            </div>
+                            <small>@_selectedGoalForRecurrence.CompletionPercentage% completed</small>
+                        </div>
+                    }
+
+                    <div class="mb-2">
+                        <label class="form-label fw-bold">Make this goal recurring</label>
+
+                        @foreach (var option in new[] { "Daily", "Weekly", "Monthly", "None" })
+                        {
+                            <div class="form-check">
+                                <input type="radio"
+                                       class="form-check-input"
+                                       name="recurrence"
+                                       checked="@(_selectedRecurrence == option)"
+                                       @onchange="@(() => _selectedRecurrence = option)"
+                                       value="@option" />
+                                <label class="form-check-label">@option</label>
+                            </div>
+                        }
+
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CloseRecurrenceDialog">Cancel</button>
+                    <button class="btn btn-primary" @onclick="SaveRecurrence">Save</button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+}
+
 <div class="mb-4">
 
 </div>
@@ -192,6 +247,7 @@
                                     <button class="btn btn-sm btn-warning mb-1 mb-md-1 mb-lg-0"
                                         @onclick="() => StartEdit(goal)">Edit</button>
                                     <button class="btn btn-sm btn-danger" @onclick="() => DeleteGoal(goal.Id)">Delete</button>
+                                    <button class="btn btn-sm btn-info mb-1" @onclick="() => OpenRecurrenceDialog(goal)"> Recurrence</button>
                                 </td>
                             }
                         </tr>
@@ -252,6 +308,12 @@
     private void CloseDialog() => _showDialog = false;
     private List<Goal> _goals = new List<Goal>();
 
+    // Recurrence dialog fields
+    private bool _showRecurrenceDialog = false;
+    private Goal? _selectedGoalForRecurrence;
+    private string _selectedRecurrence = "None";
+
+
     // New goal fields
     private string _newGoalTitle = "";
     private string _newGoalDescription = "";
@@ -311,7 +373,7 @@
     {
         if (!string.IsNullOrWhiteSpace(_newGoalTitle))
         {
-            await GoalService.AddGoalAsync(_newGoalTitle, _newGoalDescription, _newGoalCategory, _newGoalPriority, _newGoalDueDate);
+            await GoalService.AddGoalAsync(_newGoalTitle, _newGoalDescription, _newGoalCategory, _newGoalPriority, _newGoalDueDate, RecurrenceType.None);
 
             // Clear form
             _newGoalTitle = "";
@@ -336,7 +398,7 @@
 
     private async Task SaveEdit(int id)
     {
-        await GoalService.EditGoalAsync(id, _editGoalTitle, _editGoalDescription, _editGoalCategory, _editGoalPriority, _editGoalDueDate);
+        await GoalService.EditGoalAsync(id, _editGoalTitle, _editGoalDescription, _editGoalCategory, _editGoalPriority, _editGoalDueDate, RecurrenceType.None);
         _editingGoalId = null;
         await RefreshGoalsAsync();
     }
@@ -374,4 +436,34 @@
         await GoalService.ToggleGoalCompletedAsync(id, completed);
         await RefreshGoalsAsync();
     }
+
+    private void OpenRecurrenceDialog(Goal goal)
+    {
+        _selectedGoalForRecurrence = goal;
+        _selectedRecurrence = goal.Recurrence.ToString();
+        _showRecurrenceDialog = true;
+    }
+
+    private void CloseRecurrenceDialog()
+    {
+        _selectedGoalForRecurrence = null;
+        _showRecurrenceDialog = false;
+    }
+
+    private async Task SaveRecurrence()
+    {
+        if (_selectedGoalForRecurrence != null)
+        {
+            RecurrenceType recurrence = Enum.Parse<RecurrenceType>(_selectedRecurrence);
+
+            await GoalService.UpdateGoalRecurrenceAsync(
+                _selectedGoalForRecurrence.Id,
+                recurrence
+            );
+        }
+
+        _showRecurrenceDialog = false;
+        await RefreshGoalsAsync();
+    }
+    
 }

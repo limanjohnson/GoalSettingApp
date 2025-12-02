@@ -17,7 +17,28 @@
     </NotAuthorized>
 </AuthorizeView>
 
-<div class="d-flex flex-column flex-lg-row justify-content-around gap-2 mt-4">
+<div class="alert alert-primary mt-4 p-4 w-100">
+    <h4 class="mb-2">Overall Goal Progress</h4>
+
+    <p class="mb-1">
+        <strong>@_completedCount</strong> of <strong>@_totalCount</strong> goals completed
+        (@_progressPercentage%)
+    </p>
+
+    <div class="progress" style="height: 20px;">
+        <div class="progress-bar"
+             role="progressbar"
+             style="width: @_progressPercentage%;"
+             aria-valuenow="@_progressPercentage"
+             aria-valuemin="0"
+             aria-valuemax="100">
+            @_progressPercentage%
+        </div>
+    </div>
+</div>
+
+<div class="d-flex flex-column flex-lg-row justify-content-around gap-3 mt-4">
+
     <GoalTable 
         Title="Your High Priority Goals"
         EmptyMessage="You have no high priority goals! Looking Good!"
@@ -41,7 +62,10 @@
     <GoalTable
         Title="Upcoming Due Dates"
         EmptyMessage="You have no due dates this week!"
-        Items="@_goals.Where(g => g.DueDate != null && g.DueDate <= DateTime.Today.AddDays(7) && !g.IsCompleted)"
+        Items="@_goals.Where(g => 
+            g.DueDate != null &&
+            g.DueDate <= DateTime.Today.AddDays(7) && 
+            !g.IsCompleted)"
         Headers="@_headers">
     
         <RowTemplate Context="goal">
@@ -58,18 +82,43 @@
         </RowTemplate>
 
     </GoalTable>
+
+    <GoalTable
+        Title="Recurring Goals"
+        EmptyMessage="You have no recurring goals."
+        Items="@_goals.Where(g => g.Recurrence != RecurrenceType.None)"
+        Headers="@_headers">
+
+        <RowTemplate Context="goal">
+            <tr>
+                <td>@goal.Title</td>
+                <td>@goal.Category</td>
+                <td><span class="badge bg-info">@goal.Recurrence</span></td>
+                <td>@goal.DueDate?.ToString("d")</td>
+            </tr>
+        </RowTemplate>
+
+    </GoalTable>
+
 </div>
 
+@code {
+    private List<Goal> _goals = new();
+    private List<string> _headers = new() { "Title", "Category", "Priority", "Due Date" };
 
-
-
-@code{
-    private List<Goal> _goals = new List<Goal>();
-    private List<string> _headers = new List<string> { "Title", "Category", "Priority", "Due Date" };
+    private int _completedCount;
+    private int _totalCount;
+    private int _progressPercentage;
 
     protected override async Task OnInitializedAsync()
     {
         _goals = await GoalService.GetAllGoalsAsync();
-    }
 
+        _totalCount = _goals.Count;
+        _completedCount = _goals.Count(g => g.IsCompleted);
+
+        _progressPercentage = _totalCount == 0
+            ? 0
+            : (_completedCount * 100 / _totalCount);
+    }
 }

@@ -42,6 +42,18 @@ namespace GoalSettingApp
             set => PriorityString = value.ToString();
         }
 
+        // Not stored in DB
+        // Recurrence (not stored in DB)
+        [JsonIgnore]
+        public RecurrenceType Recurrence { get; set; } = RecurrenceType.None;
+
+        // Computed percentage (not stored in DB)
+        [JsonIgnore]
+        public int CompletionPercentage
+        {
+            get => IsCompleted ? 100 : 0;
+        }
+
     }
 
     public enum PriorityLevel
@@ -50,5 +62,12 @@ namespace GoalSettingApp
         Medium,
         High
     }
-}
 
+    public enum RecurrenceType
+    {
+        None,
+        Daily,
+        Weekly,
+        Monthly
+    }
+}
