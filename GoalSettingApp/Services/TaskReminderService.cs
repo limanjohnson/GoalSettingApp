@@ -1,4 +1,4 @@
-using GoalSettingApp.Models;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace GoalSettingApp.Services
 {
@@ -9,16 +9,23 @@ namespace GoalSettingApp.Services
     {
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<TaskReminderService> _logger;
+        private readonly HttpClient _httpClient;
+        private readonly string _supabaseUrl;
+        private readonly string _supabaseServiceKey;
         private readonly TimeSpan _checkInterval = TimeSpan.FromMinutes(1); // Check every minute for precise timing
         private readonly TimeSpan _morningTime;
         private readonly TimeSpan _eveningTime;
         private DateTime _lastMorningReminder = DateTime.MinValue;
         private DateTime _lastEveningReminder = DateTime.MinValue;
 
-        public TaskReminderService(IServiceProvider serviceProvider, ILogger<TaskReminderService> logger)
+        public TaskReminderService(IServiceProvider serviceProvider, ILogger<TaskReminderService> logger, IHttpClientFactory httpClientFactory)
         {
             _serviceProvider = serviceProvider;
             _logger = logger;
+            _httpClient = httpClientFactory.CreateClient();
+
+            _supabaseUrl = Environment.GetEnvironmentVariable("SUPABASE_URL") ?? "";
+            _supabaseServiceKey = Environment.GetEnvironmentVariable("SUPABASE_SERVICE_KEY") ?? "";
 
             // Parse configured times from environment variables
             _morningTime = ParseTime(Environment.GetEnvironmentVariable("Morning_Time"), new TimeSpan(8, 0, 0));
@@ -98,18 +105,20 @@ namespace GoalSettingApp.Services
         private async Task SendDailyRemindersToAllUsersAsync(bool isMorning)
         {
             using var scope = _serviceProvider.CreateScope();
-            var supabase = scope.ServiceProvider.GetRequiredService<Supabase.Client>();
+            // Use the admin client (service role key) to bypass RLS and see all users' goals
+            var supabase = scope.ServiceProvider.GetRequiredKeyedService<Supabase.Client>("admin");
             var emailService = scope.ServiceProvider.GetRequiredService<EmailService>();
 
             try
             {
-                // Get all incomplete goals
+                // Get all incomplete goals from ALL users in the database
                 var response = await supabase
                     .From<Goal>()
                     .Where(g => g.IsCompleted == false)
                     .Get();
 
                 var goals = response.Models;
+                _logger.LogInformation("Found {Count} incomplete goals across all users", goals.Count);
 
                 // Group goals by user
                 var goalsByUser = goals.GroupBy(g => g.UserId);
@@ -121,8 +130,8 @@ namespace GoalSettingApp.Services
 
                     if (userPendingTasks.Count == 0) continue;
 
-                    var userEmail = await GetUserEmailAsync(supabase, userId);
-                    var userName = await GetUserNameAsync(supabase, userId);
+                    // Get user info from Supabase Auth (works for all users, not just logged in)
+                    var (userEmail, userName) = await GetUserInfoAsync(userId);
 
                     if (!string.IsNullOrEmpty(userEmail))
                     {
@@ -140,6 +149,10 @@ namespace GoalSettingApp.Services
                             userPendingTasks.Count
                         );
                     }
+                    else
+                    {
+                        _logger.LogWarning("Could not get email for user {UserId}, skipping reminder", userId);
+                    }
                 }
             }
             catch (Exception ex)
@@ -148,39 +161,42 @@ namespace GoalSettingApp.Services
             }
         }
 
-        private async Task<string?> GetUserEmailAsync(Supabase.Client supabase, string userId)
+        private async Task<(string? email, string? name)> GetUserInfoAsync(string userId)
         {
             try
             {
-                // For now, we'll need to store user email in a profiles table or use admin API
-                // This is a simplified approach - you may need to adjust based on your user data structure
-                var response = await supabase
-                    .From<UserProfile>()
-                    .Where(p => p.UserId == userId)
-                    .Single();
+                // Use Supabase Admin API to get user info from auth.users
+                var request = new HttpRequestMessage(HttpMethod.Get, $"{_supabaseUrl}/auth/v1/admin/users/{userId}");
+                request.Headers.Add("apikey", _supabaseServiceKey);
+                request.Headers.Add("Authorization", $"Bearer {_supabaseServiceKey}");
 
-                return response?.Email;
-            }
-            catch
-            {
-                return null;
-            }
-        }
+                var response = await _httpClient.SendAsync(request);
 
-        private async Task<string?> GetUserNameAsync(Supabase.Client supabase, string userId)
-        {
-            try
-            {
-                var response = await supabase
-                    .From<UserProfile>()
-                    .Where(p => p.UserId == userId)
-                    .Single();
+                if (response.IsSuccessStatusCode)
+                {
+                    var json = await response.Content.ReadAsStringAsync();
+                    var userDoc = System.Text.Json.JsonDocument.Parse(json);
+                    var root = userDoc.RootElement;
 
-                return response?.DisplayName;
+                    var email = root.TryGetProperty("email", out var emailProp) ? emailProp.GetString() : null;
+
+                    string? displayName = null;
+                    if (root.TryGetProperty("user_metadata", out var metadata) &&
+                        metadata.TryGetProperty("display_name", out var nameProp))
+                    {
+                        displayName = nameProp.GetString();
+                    }
+
+                    return (email, displayName ?? email);
+                }
+
+                _logger.LogWarning("Failed to get user info for {UserId}: {StatusCode}", userId, response.StatusCode);
+                return (null, null);
             }
-            catch
+            catch (Exception ex)
             {
-                return null;
+                _logger.LogError(ex, "Error getting user info for {UserId}", userId);
+                return (null, null);
             }
         }
     }

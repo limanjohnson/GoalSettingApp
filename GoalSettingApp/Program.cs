@@ -14,15 +14,22 @@ builder.Services.AddRazorComponents()
 // Supabase Database Connection
 var url = Environment.GetEnvironmentVariable("SUPABASE_URL");
 var key = Environment.GetEnvironmentVariable("SUPABASE_KEY");
+var serviceKey = Environment.GetEnvironmentVariable("SUPABASE_SERVICE_KEY");
 var options = new Supabase.SupabaseOptions
 {
     AutoConnectRealtime = true
 };
+// Regular client for user-scoped operations (respects RLS)
 var supabase = new Supabase.Client(url, key, options);
 await supabase.InitializeAsync();
 
-// Register Supabase client in DI container
+// Service role client for admin operations (bypasses RLS)
+var supabaseAdmin = new Supabase.Client(url, serviceKey, options);
+await supabaseAdmin.InitializeAsync();
+
+// Register both clients in DI container
 builder.Services.AddSingleton(supabase);
+builder.Services.AddKeyedSingleton("admin", supabaseAdmin);
 
 // Register HttpContextAccessor (needed for cookie auth in components)
 builder.Services.AddHttpContextAccessor();
@@ -102,7 +109,7 @@ if (app.Environment.IsDevelopment())
             : Results.BadRequest(new { success = false, message = "Failed to send test email. Check logs for details." });
     });
 
-    // Test daily reminder endpoint
+    // Test daily reminder endpoint (single user - your email)
     app.MapGet("/api/test-daily-reminder/{type}", async (string type, EmailService emailService, Supabase.Client supabaseClient) =>
     {
         var isMorning = type.ToLower() == "morning";
@@ -126,6 +133,150 @@ if (app.Environment.IsDevelopment())
         return result
             ? Results.Ok(new { success = true, message = $"Daily {type} reminder sent with {taskCount} tasks!" })
             : Results.BadRequest(new { success = false, message = "Failed to send daily reminder. Check logs for details." });
+    });
+
+    // List all users in Supabase Auth
+    app.MapGet("/api/list-all-users", async (IHttpClientFactory httpClientFactory) =>
+    {
+        var supabaseUrl = Environment.GetEnvironmentVariable("SUPABASE_URL") ?? "";
+        var supabaseKey = Environment.GetEnvironmentVariable("SUPABASE_SERVICE_KEY") ?? "";
+        var httpClient = httpClientFactory.CreateClient();
+
+        var request = new HttpRequestMessage(HttpMethod.Get, $"{supabaseUrl}/auth/v1/admin/users");
+        request.Headers.Add("apikey", supabaseKey);
+        request.Headers.Add("Authorization", $"Bearer {supabaseKey}");
+
+        var response = await httpClient.SendAsync(request);
+        var json = await response.Content.ReadAsStringAsync();
+
+        if (!response.IsSuccessStatusCode)
+        {
+            return Results.BadRequest(new { error = $"Failed to fetch users: {response.StatusCode}", details = json });
+        }
+
+        var doc = System.Text.Json.JsonDocument.Parse(json);
+        var users = new List<object>();
+
+        if (doc.RootElement.TryGetProperty("users", out var usersArray))
+        {
+            foreach (var user in usersArray.EnumerateArray())
+            {
+                var email = user.TryGetProperty("email", out var e) ? e.GetString() : null;
+                var id = user.TryGetProperty("id", out var i) ? i.GetString() : null;
+                string? name = null;
+                if (user.TryGetProperty("user_metadata", out var meta) && meta.TryGetProperty("display_name", out var n))
+                    name = n.GetString();
+
+                users.Add(new { id, email, name });
+            }
+        }
+
+        return Results.Ok(new { totalUsers = users.Count, users });
+    });
+
+    // Preview which users would receive reminders (no emails sent)
+    app.MapGet("/api/preview-reminder-recipients", async (Supabase.Client supabaseClient, IHttpClientFactory httpClientFactory) =>
+    {
+        var supabaseUrl = Environment.GetEnvironmentVariable("SUPABASE_URL") ?? "";
+        var supabaseKey = Environment.GetEnvironmentVariable("SUPABASE_SERVICE_KEY") ?? "";
+        var httpClient = httpClientFactory.CreateClient();
+        var recipients = new List<object>();
+
+        var response = await supabaseClient
+            .From<Goal>()
+            .Where(g => g.IsCompleted == false)
+            .Get();
+
+        var goals = response.Models;
+        var goalsByUser = goals.GroupBy(g => g.UserId);
+
+        foreach (var userGoals in goalsByUser)
+        {
+            var userId = userGoals.Key;
+            var taskCount = userGoals.Count();
+
+            var request = new HttpRequestMessage(HttpMethod.Get, $"{supabaseUrl}/auth/v1/admin/users/{userId}");
+            request.Headers.Add("apikey", supabaseKey);
+            request.Headers.Add("Authorization", $"Bearer {supabaseKey}");
+
+            var userResponse = await httpClient.SendAsync(request);
+
+            if (userResponse.IsSuccessStatusCode)
+            {
+                var json = await userResponse.Content.ReadAsStringAsync();
+                var userDoc = System.Text.Json.JsonDocument.Parse(json);
+                var root = userDoc.RootElement;
+
+                var email = root.TryGetProperty("email", out var emailProp) ? emailProp.GetString() : null;
+                string? displayName = null;
+                if (root.TryGetProperty("user_metadata", out var metadata) &&
+                    metadata.TryGetProperty("display_name", out var nameProp))
+                {
+                    displayName = nameProp.GetString();
+                }
+
+                recipients.Add(new { email, name = displayName, pendingTasks = taskCount });
+            }
+        }
+
+        return Results.Ok(new { totalRecipients = recipients.Count, recipients });
+    });
+
+    // Test sending reminders to ALL users (like the background service does)
+    app.MapGet("/api/test-all-users-reminder/{type}", async (string type, EmailService emailService, Supabase.Client supabaseClient, IHttpClientFactory httpClientFactory) =>
+    {
+        var isMorning = type.ToLower() == "morning";
+        var supabaseUrl = Environment.GetEnvironmentVariable("SUPABASE_URL") ?? "";
+        var supabaseKey = Environment.GetEnvironmentVariable("SUPABASE_SERVICE_KEY") ?? "";
+        var httpClient = httpClientFactory.CreateClient();
+        var results = new List<object>();
+
+        // Get all incomplete goals from ALL users
+        var response = await supabaseClient
+            .From<Goal>()
+            .Where(g => g.IsCompleted == false)
+            .Get();
+
+        var goals = response.Models;
+        var goalsByUser = goals.GroupBy(g => g.UserId);
+
+        foreach (var userGoals in goalsByUser)
+        {
+            var userId = userGoals.Key;
+            var userPendingTasks = userGoals.ToList();
+
+            if (userPendingTasks.Count == 0) continue;
+
+            // Get user info from Supabase Admin API
+            var request = new HttpRequestMessage(HttpMethod.Get, $"{supabaseUrl}/auth/v1/admin/users/{userId}");
+            request.Headers.Add("apikey", supabaseKey);
+            request.Headers.Add("Authorization", $"Bearer {supabaseKey}");
+
+            var userResponse = await httpClient.SendAsync(request);
+
+            if (userResponse.IsSuccessStatusCode)
+            {
+                var json = await userResponse.Content.ReadAsStringAsync();
+                var userDoc = System.Text.Json.JsonDocument.Parse(json);
+                var root = userDoc.RootElement;
+
+                var email = root.TryGetProperty("email", out var emailProp) ? emailProp.GetString() : null;
+                string? displayName = null;
+                if (root.TryGetProperty("user_metadata", out var metadata) &&
+                    metadata.TryGetProperty("display_name", out var nameProp))
+                {
+                    displayName = nameProp.GetString();
+                }
+
+                if (!string.IsNullOrEmpty(email))
+                {
+                    var sent = await emailService.SendDailyReminderAsync(email, displayName ?? "User", userPendingTasks, isMorning);
+                    results.Add(new { email, taskCount = userPendingTasks.Count, sent });
+                }
+            }
+        }
+
+        return Results.Ok(new { success = true, message = $"Sent {type} reminders to {results.Count} users", details = results });
     });
 }
 
