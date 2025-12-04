@@ -31,6 +31,8 @@ namespace GoalSettingApp
 
         [Column("created_at")]
         public DateTime CreatedAt { get; set; }
+          // Adding progress field
+        //public int Progress { get; set; }
 
         [Column("is_completed")]
         public bool IsCompleted { get; set; } = false;

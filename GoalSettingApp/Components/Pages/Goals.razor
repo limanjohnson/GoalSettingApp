@@ -2,6 +2,8 @@
 @attribute [Authorize]
 @using GoalSettingApp.Services
 @using GoalSettingApp.Extensions
+@using GoalSettingApp.Components 
+
 @inject GoalService GoalService
 @rendermode InteractiveServer
 
@@ -189,9 +191,12 @@
                                 <td class="col-due">@(goal.DueDate?.ToString("MMM d, yyyy") ?? "—")</td>
                                 <td class="col-created">@goal.CreatedAt.ToString("MMM d, yyyy")</td>
                                 <td class="col-actions">
-                                    <button class="btn btn-sm btn-warning mb-1 mb-md-1 mb-lg-0"
+                                    @* Link to display goal details dialog (OpenDialog) *@                                    
+                                    <button class="btn btn-sm btn-info mb-1" @onclick="() => OpenGoalDetails(goal)">View</button>
+                                    
+                                    @*<button class="btn btn-sm btn-warning mb-1 mb-md-1 mb-lg-0"
                                         @onclick="() => StartEdit(goal)">Edit</button>
-                                    <button class="btn btn-sm btn-danger" @onclick="() => DeleteGoal(goal.Id)">Delete</button>
+                                    <button class="btn btn-sm btn-danger" @onclick="() => DeleteGoal(goal.Id)">Delete</button>*@
                                 </td>
                             }
                         </tr>
@@ -201,6 +206,7 @@
         </div>
     }
 </div>
+
 
 @* ARCHIVED GOALS *@
 <div>
@@ -236,6 +242,7 @@
                             <button class="btn btn-sm btn-danger" 
                                 @onclick="() => DeleteGoal(goal.Id)">Delete</button>
                         </td>
+                        
                     </tr>
                 }
             </tbody>
@@ -243,6 +250,17 @@
     </div>
 }
 </div>
+
+@* === GOAL DETAILS DIALOG (VIEW LANDING PAGE) === *@
+@if (_showGoalDetails && _selectedGoal is not null)
+{
+    <GoalDialog 
+        Goal="_selectedGoal"
+        OnClose="CloseGoalDetails"
+        OnConfirm="SaveGoalDetails"
+        OnEdit="StartEditFromDialog"
+        OnDelete="DeleteFromDialog" />
+}
 
 @code {
 
@@ -373,5 +391,51 @@
     {
         await GoalService.ToggleGoalCompletedAsync(id, completed);
         await RefreshGoalsAsync();
+    }
+
+
+    /* --- Goal Details Landing Page (Dialog) --  */
+    private Goal? _selectedGoal = null;
+    private bool _showGoalDetails = false;
+
+    private void OpenGoalDetails(Goal goal)
+    {
+        _selectedGoal = goal;
+        _showGoalDetails = true;
+    }
+
+    private void CloseGoalDetails()
+    {
+        _showGoalDetails = false;
+        _selectedGoal = null;
+    }
+
+    private async Task SaveGoalDetails()
+    {
+        await GoalService.EditGoalAsync(
+            _selectedGoal.Id,
+            _selectedGoal.Title,
+            _selectedGoal.Description,
+            _selectedGoal.Category,
+            _selectedGoal.Priority,
+            _selectedGoal.DueDate
+        );
+
+        _showGoalDetails = false;
+        await RefreshGoalsAsync();
+    } 
+
+    private void StartEditFromDialog(Goal goal)
+    {
+        _showGoalDetails = false;
+
+        StartEdit(goal); 
+    }
+
+    private async Task DeleteFromDialog(int id)
+    {
+        _showGoalDetails = false;
+
+        await DeleteGoal(id);
     }
 }
