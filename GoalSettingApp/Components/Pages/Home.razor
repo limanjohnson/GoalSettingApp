@@ -17,6 +17,27 @@
     </NotAuthorized>
 </AuthorizeView>
 
+<div class="alert alert-primary mt-4 p-4 w-100">
+    <h4 class="mb-2">Overall Goal Progress</h4>
+
+    <p class="mb-1">
+        <strong>@_completedCount</strong> of <strong>@_totalCount</strong> goals completed
+        (@_progressPercentage%)
+    </p>
+
+    <div class="progress" style="height: 20px;">
+        <div class="progress-bar"
+             role="progressbar"
+             style="width: @_progressPercentage%;"
+             aria-valuenow="@_progressPercentage"
+             aria-valuemin="0"
+             aria-valuemax="100">
+            @_progressPercentage%
+        </div>
+    </div>
+</div>
+
+
 @if (OverdueGoals.Any())
 {
     <div class="alert alert-danger">
@@ -63,6 +84,23 @@
         </RowTemplate>
 
     </GoalTable>
+
+    <GoalTable
+        Title="Recurring Goals"
+        EmptyMessage="You have no recurring goals."
+        Items="@_goals.Where(g => g.Recurrence != RecurrenceType.None)"
+        Headers="@_headers">
+
+        <RowTemplate Context="goal">
+            <tr>
+                <td>@goal.Title</td>
+                <td>@goal.Category</td>
+                <td><span class="badge bg-info">@goal.Recurrence</span></td>
+                <td>@goal.DueDate?.ToString("d")</td>
+            </tr>
+        </RowTemplate>
+
+    </GoalTable>
 </div>
 
 <div class="week-calendar mt-4 mb-4">
@@ -103,10 +141,21 @@
     private List<Goal> OverdueGoals => _goals
         .Where(g => !g.IsCompleted && g.DueDate.HasValue && g.DueDate.Value.Date < DateTime.Today)
         .ToList();
+    // Progress calculation
+    private int _completedCount;
+    private int _totalCount;
+    private int _progressPercentage;
 
     protected override async Task OnInitializedAsync()
     {
         _goals = await GoalService.GetAllGoalsAsync();
+
+        _totalCount = _goals.Count;
+        _completedCount = _goals.Count(g => g.IsCompleted);
+
+        _progressPercentage = _totalCount == 0
+            ? 0
+            : (_completedCount * 100 / _totalCount);
     }
 
     // Get dates for mini calendar

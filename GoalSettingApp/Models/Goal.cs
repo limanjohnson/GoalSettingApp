@@ -35,6 +35,12 @@ namespace GoalSettingApp
         [Column("is_completed")]
         public bool IsCompleted { get; set; } = false;
 
+        //Required by your UI and GoalService
+        public RecurrenceType Recurrence { get; set; } = RecurrenceType.None;
+
+        //store progress manually
+        public int CompletionPercentage { get; set; } = 0;
+
         [JsonIgnore]
         public PriorityLevel Priority
         {
@@ -49,6 +55,14 @@ namespace GoalSettingApp
         Low,
         Medium,
         High
+    }
+
+    public enum RecurrenceType
+    {
+        None,
+        Daily,
+        Weekly,
+        Monthly
     }
 }
 
