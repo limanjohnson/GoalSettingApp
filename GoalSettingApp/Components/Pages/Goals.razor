@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @using GoalSettingApp.Services
 @using GoalSettingApp.Extensions
+@using GoalSettingApp.Components
 @inject GoalService GoalService
 @rendermode InteractiveServer
 
@@ -40,12 +41,19 @@
 
     .col-complete { width: 8%; }
     .col-title { width: 12%; }
-    .col-description { width: 24%; }
-    .col-category { width: 10%; }
+    .col-description { width: 21%; }
+    .col-category { width: 13%; }
     .col-priority { width: 8%; }
     .col-due { width: 12%; }
     .col-created { width: 12%; }
     .col-actions { width: 14%; }
+    
+    .text-shortening-cell {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 0;
+    }
 
     .archived-collapse {
         max-height: 0;
@@ -214,17 +222,17 @@
                 <tbody>
                     @foreach (var goal in ActiveGoals)
                     {
-                        <tr @key="goal.Id">
-                            <td>
+                        <tr @key="goal.Id" @onclick="() => OpenGoalDetails(goal)" style="cursor: pointer;">
+                            <td @onclick:stopPropagation>
                                 <input type="checkbox" class="form-check-input" checked="@goal.IsCompleted" @onchange="() => ToggleCompletion(goal.Id, true)" />
                             </td>
-                            <td class="table-text col-title">@goal.Title</td>
-                            <td class="col-description">@goal.Description.FirstCharToUpper()</td>
-                            <td class="col-category">@goal.Category.FirstCharToUpper()</td>
+                            <td class="table-text col-title text-shortening-cell" title="@goal.Title">@goal.Title</td>
+                            <td class="col-description text-shortening-cell" title="@goal.Description.FirstCharToUpper()">@goal.Description.FirstCharToUpper()</td>
+                            <td class="col-category text-shortening-cell" title="@goal.Category.FirstCharToUpper()">@goal.Category.FirstCharToUpper()</td>
                             <td class="col-priority"><span class="badge bg-@GetPriorityColor(goal.Priority)">@goal.Priority</span></td>
                             <td class="col-due">@(goal.DueDate?.ToString("MMM d, yyyy") ?? "—")</td>
                             <td class="col-created">@goal.CreatedAt.ToString("MMM d, yyyy")</td>
-                            <td class="col-actions">
+                            <td class="col-actions" @onclick:stopPropagation>
                                 <button class="btn btn-sm btn-warning mb-1 mb-md-1 mb-lg-0"
                                     @onclick="() => StartEdit(goal)">Edit</button>
                                 <button class="btn btn-sm btn-danger" @onclick="() => DeleteGoal(goal.Id)">Delete</button>
@@ -267,9 +275,9 @@
                         @foreach (var goal in PagedArchivedGoals)
                         {
                             <tr class="text-muted" @key="goal.Id">
-                                <td>@goal.Title</td>
-                                <td>@goal.Description.FirstCharToUpper()</td>
-                                <td>@goal.Category.FirstCharToUpper()</td>
+                                <td class="text-shortening-cell" title="@goal.Title">@goal.Title</td>
+                                <td class="text-shortening-cell" title="@goal.Description.FirstCharToUpper()">@goal.Description.FirstCharToUpper()</td>
+                                <td class="text-shortening-cell" title="@goal.Category.FirstCharToUpper()">@goal.Category.FirstCharToUpper()</td>
                                 <td><span class="badge bg-@GetPriorityColor(goal.Priority)">@goal.Priority</span></td>
                                 <td>@(goal.DueDate?.ToString("MMM d, yyyy") ?? "—")</td>
                                 <td>@goal.CreatedAt.ToString("MMM d, yyyy")</td>
@@ -297,6 +305,16 @@
     </div>
 }
 </div>
+
+@* === GOAL DETAILS DIALOG === *@
+@if (_showGoalDetails && _selectedGoal is not null)
+{
+    <GoalDialog
+        Goal="_selectedGoal"
+        OnClose="CloseGoalDetails"
+        OnEdit="StartEditFromDialog"
+        OnDelete="DeleteFromDialog" />
+}
 
 @code {
 
@@ -458,6 +476,34 @@
     {
         if (_archivedCurrentPage < ArchivedTotalPages)
             _archivedCurrentPage++;
+    }
+
+    // Goal Details Dialog
+    private Goal? _selectedGoal = null;
+    private bool _showGoalDetails = false;
+
+    private void OpenGoalDetails(Goal goal)
+    {
+        _selectedGoal = goal;
+        _showGoalDetails = true;
+    }
+
+    private void CloseGoalDetails()
+    {
+        _showGoalDetails = false;
+        _selectedGoal = null;
+    }
+
+    private void StartEditFromDialog(Goal goal)
+    {
+        _showGoalDetails = false;
+        StartEdit(goal);
+    }
+
+    private async Task DeleteFromDialog(int id)
+    {
+        _showGoalDetails = false;
+        await DeleteGoal(id);
     }
 
 }
